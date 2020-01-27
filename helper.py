@@ -51,27 +51,30 @@ def update_weights(A, B, C, X, lamb, weights, sketching_rates, rank, nu):
 """
 Performs Ridge Regression and optimizes a singular factor matrix
 """
-def RS_LS(A, B, C, X, lamb, s, rank, l):
-	dim_1, dim_2 = X.shape
-	# S = generate_sketch_matrix(s, dim_2)*np.sqrt(s)
-	
+def RS_LS(A, B, C, X_orig, lamb, s, rank, l):
+	dim_1, dim_2 = X_orig.shape
+	idx = generate_sketch_indices(s, dim_2)
+
 	if l == 'A':
-		M = tl_alg.khatri_rao([C,B]).T
-		return np.matmul(X, np.linalg.pinv(M))
-		# return np.matmul((A + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
+		X = X_orig[:, idx]
+		M = (tl_alg.khatri_rao([C,B]).T)[:, idx]
+		# return np.matmul(X, np.linalg.pinv(M))
+		return np.matmul((A + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
 		# return np.matmul((A + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank))) 
 	if l == 'B':
-		M = tl_alg.khatri_rao([C,A]).T
+		X = X_orig[:, idx]
+		M = (tl_alg.khatri_rao([C,A]).T)[:, idx]
 		Z = np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank))
-		return np.matmul(X, np.linalg.pinv(M))
-		# return np.matmul((B + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
+		# return np.matmul(X, np.linalg.pinv(M))
+		return np.matmul((B + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
 		# return np.matmul((B + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank)))
 	if l == 'C':
-		M = tl_alg.khatri_rao([B,A]).T
+		X = X_orig[:, idx]
+		M = (tl_alg.khatri_rao([B,A]).T)[:, idx]
 		Z = np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank))
-		return np.matmul(X, np.linalg.pinv(M))
-		# return np.matmul((C + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
-		# return np.matmul((C + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank)))
+		# return np.matmul(X, np.linalg.pinv(M))
+		return np.matmul((C + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
+	 	# return np.matmul((C + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank)))
 	return
 
 
@@ -86,12 +89,10 @@ def update_factors(A, B, C, X, lamb, s, rank):
 	return A_new,B_new,C_new
 
 """
-Generates sketching matrix
+Generates sketching indices
 """
-def generate_sketch_matrix(s, total_col):
-	z = np.zeros((total_col, int(s*total_col)), int)
-	np.fill_diagonal(z, 1)
-	return np.random.permutation(z)
+def generate_sketch_indices(s, total_col):
+	return np.random.choice(range(total_col), size=int(s*total_col), replace=False, p=None)
 
 """
 Computes residual error

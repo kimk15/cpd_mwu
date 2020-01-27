@@ -13,7 +13,7 @@ from helper import norm
 Computes CPD for 3 dimensional tensors.
 Returns A,B,C
 """
-def CPD_MWU(X, sketching_rates, lamb, eps, nu, rank, num_iterations=100):
+def CPD_MWU(X, sketching_rates, lamb, eps, nu, rank, F, num_iterations=100):
 	# Keep residual errors
 	error = []
 	diff_norm = []
@@ -42,7 +42,10 @@ def CPD_MWU(X, sketching_rates, lamb, eps, nu, rank, num_iterations=100):
 		error.append(residual_error(X,A,B,C))
 		diff_norm.append(norm(X-tl_kruskal.kruskal_to_tensor([A,B,C])))
 
-		# print("Iteration", i, ":", norm(X), diff_norm[-1], error[-1])
+		print("Iteration", i, ":", norm(X), diff_norm[-1], error[-1])
+		F[0] = A
+		F[1] = B
+		F[2] = C
 	return A,B,C, error, diff_norm
 
 
