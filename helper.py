@@ -1,9 +1,12 @@
+from numpy import eye
+from numpy.linalg import pinv, norm
 import numpy as np
 import time
 import random
 import tensorly.tenalg as tl_alg
 import tensorly.base as tl_base
 import tensorly.kruskal_tensor as tl_kruskal
+
 """
 Randomly generates numpy matrix G with entries [0,1)
 """
@@ -22,6 +25,7 @@ def sample(sketching_rate, weights):
 		if total_sum > r:
 			return sketching_rate[i]
 
+	return weights[-1]
 """
 Unfolds a tensors following the Kolda and Bader definition
 Source: https://stackoverflow.com/questions/49970141/using-numpy-reshape-to-perform-3rd-rank-tensor-unfold-operation
@@ -45,49 +49,39 @@ def update_weights(A, B, C, X, lamb, weights, sketching_rates, rank, nu):
 		A_new, B_new, C_new = update_factors(A, B, C, X, lamb, s, rank)
 		total_time = time.time() - start
 		weights[i] = (residual_error(X, A_new, B_new, C_new) - residual_error(X, A, B, C)) / total_time
-
+	
+	weights /= sum(weights)
 	return
 
 """
-Performs Ridge Regression and optimizes a singular factor matrix
-"""
-def RS_LS(A, B, C, X_orig, lamb, s, rank, l):
-	dim_1, dim_2 = X_orig.shape
-	idx = generate_sketch_indices(s, dim_2)
-
-	if l == 'A':
-		X = X_orig[:, idx]
-		M = (tl_alg.khatri_rao([C,B]).T)[:, idx]
-		# return np.matmul(X, np.linalg.pinv(M))
-		return np.matmul((A + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
-		# return np.matmul((A + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank))) 
-	if l == 'B':
-		X = X_orig[:, idx]
-		M = (tl_alg.khatri_rao([C,A]).T)[:, idx]
-		Z = np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank))
-		# return np.matmul(X, np.linalg.pinv(M))
-		return np.matmul((B + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
-		# return np.matmul((B + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank)))
-	if l == 'C':
-		X = X_orig[:, idx]
-		M = (tl_alg.khatri_rao([B,A]).T)[:, idx]
-		Z = np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank))
-		# return np.matmul(X, np.linalg.pinv(M))
-		return np.matmul((C + np.matmul(X,M.T)), np.linalg.pinv(np.matmul(M,M.T) + lamb*np.identity(rank)))
-	 	# return np.matmul((C + np.matmul(np.matmul(np.matmul(X,S),S.T),M.T)), np.linalg.pinv(np.matmul(np.matmul(np.matmul(M,S),S.T),M.T) + lamb*np.identity(rank)))
-	return
-
-
-"""
-Updates factor matricies
+Updates factor matrices through ridge regression
 """
 def update_factors(A, B, C, X, lamb, s, rank):
-	A_new = RS_LS(A, B, C, unfold(X, mode=0), lamb, s, rank, 'A')
-	B_new = RS_LS(A_new, B, C, unfold(X, mode=1), lamb, s, rank, 'B')
-	C_new = RS_LS(A_new, B_new, C, unfold(X, mode=2), lamb, s, rank, 'C')
+	# Generate Identity matrix
+	Id = eye(rank)
 
-	return A_new,B_new,C_new
+	# Update A
+	X_unfold = tl_base.unfold(X, 0)
+	dim_1, dim_2 = X_unfold.shape
+	idx = generate_sketch_indices(s, dim_2)
+	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=0).T)[:, idx]
+	A = (lamb * A + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
 
+	# Update B
+	X_unfold = tl_base.unfold(X, 1)
+	dim_1, dim_2 = X_unfold.shape
+	idx = generate_sketch_indices(s, dim_2)
+	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=1).T)[:, idx]
+	B = (lamb * B + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
+
+	# Update C
+	X_unfold = tl_base.unfold(X, 2)
+	dim_1, dim_2 = X_unfold.shape
+	idx = generate_sketch_indices(s, dim_2)
+	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=2).T)[:, idx]
+	C = (lamb * C + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
+
+	return A,B,C
 """
 Generates sketching indices
 """
