@@ -42,13 +42,13 @@ def bern(eps):
 """
 Updates weights according to CPD reading
 """
-def update_weights(A, B, C, X, lamb, weights, sketching_rates, rank, nu):
+def update_weights(A, B, C, X, norm_x, lamb, weights, sketching_rates, rank, nu, eps):
 	for i, w in enumerate(weights):
 		start = time.time()
 		s = sketching_rates[i]
 		A_new, B_new, C_new = update_factors(A, B, C, X, lamb, s, rank)
 		total_time = time.time() - start
-		weights[i] = (residual_error(X, A_new, B_new, C_new) - residual_error(X, A, B, C)) / total_time
+		weights[i] *= np.exp(-nu/eps*(residual_error(X, norm_x, A_new, B_new, C_new) - residual_error(X, norm_x, A, B, C)) / (total_time))
 	
 	weights /= sum(weights)
 	return
@@ -91,9 +91,9 @@ def generate_sketch_indices(s, total_col):
 """
 Computes residual error
 """
-def residual_error(X, A, B, C):
+def residual_error(X, norm_x, A, B, C):
 	X_bar = tl_kruskal.kruskal_to_tensor([A,B,C])
-	return norm(X-X_bar)/norm(X)
+	return norm(X-X_bar)/norm_x
 
 """
 Computes norm of a tensor
