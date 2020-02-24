@@ -42,11 +42,11 @@ def bern(eps):
 """
 Updates weights according to CPD reading
 """
-def update_weights(A, B, C, X, norm_x, lamb, weights, sketching_rates, rank, nu, eps):
+def update_weights(A, B, C, X, Id, norm_x, lamb, weights, sketching_rates, rank, nu, eps):
 	for i, w in enumerate(weights):
 		start = time.time()
 		s = sketching_rates[i]
-		A_new, B_new, C_new = update_factors(A, B, C, X, lamb, s, rank)
+		A_new, B_new, C_new = update_factors(A, B, C, X, Id, lamb, s, rank)
 		total_time = time.time() - start
 		weights[i] *= np.exp(-nu/eps*(residual_error(X, norm_x, A_new, B_new, C_new) - residual_error(X, norm_x, A, B, C)) / (total_time))
 	
@@ -56,10 +56,7 @@ def update_weights(A, B, C, X, norm_x, lamb, weights, sketching_rates, rank, nu,
 """
 Updates factor matrices through ridge regression
 """
-def update_factors(A, B, C, X, lamb, s, rank):
-	# Generate Identity matrix
-	Id = eye(rank)
-
+def update_factors(A, B, C, X, Id, lamb, s, rank):
 	# Update A
 	X_unfold = tl_base.unfold(X, 0)
 	dim_1, dim_2 = X_unfold.shape

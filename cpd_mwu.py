@@ -14,7 +14,10 @@ Returns A,B,C
 def CPD_MWU(X, F, sketching_rates, lamb, eps, nu, rank, update, num_iterations=100):
 	# Keep residual errors
 	error = []
+
+	# Cache norm + Id
 	norm_x = norm(X)
+	Id = eye(rank)
 
 	# Initialize weights
 	weights = np.array([1] * len(sketching_rates)) / (len(sketching_rates))
@@ -32,11 +35,11 @@ def CPD_MWU(X, F, sketching_rates, lamb, eps, nu, rank, update, num_iterations=1
 		s = sample(sketching_rates, weights)
 
 		# Solve Ridge Regression for A,B,C
-		A, B, C = update_factors(A, B, C, X, lamb, s, rank)
+		A, B, C = update_factors(A, B, C, X, Id, lamb, s, rank)
 
 		# Update weights
 		if bern(eps) == 1 and len(sketching_rates) > 1 and update:
-			update_weights(A, B, C, X, norm_x, lamb, weights, sketching_rates, rank, nu, eps)
+			update_weights(A, B, C, X, Id, norm_x, lamb, weights, sketching_rates, rank, nu, eps)
 
 		# Hold Residual Error
 		error.append(residual_error(X, norm_x, A,B,C))
