@@ -42,13 +42,13 @@ def bern(eps):
 """
 Updates weights according to CPD reading
 """
-def update_weights(A, B, C, X, Id, norm_x, lamb, weights, sketching_rates, rank, nu, eps):
+def update_weights(A, B, C, X_unfold, Id, norm_x, lamb, weights, sketching_rates, rank, nu, eps):
 	for i, w in enumerate(weights):
 		start = time.time()
 		s = sketching_rates[i]
-		A_new, B_new, C_new = update_factors(A, B, C, X, Id, lamb, s, rank)
+		A_new, B_new, C_new = update_factors(A, B, C, X_unfold, Id, lamb, s, rank)
 		total_time = time.time() - start
-		weights[i] *= np.exp(-nu/eps*(residual_error(X, norm_x, A_new, B_new, C_new) - residual_error(X, norm_x, A, B, C)) / (total_time))
+		weights[i] *= np.exp(-nu/eps*(residual_error(X_unfold[0], norm_x, A_new, B_new, C_new) - residual_error(X_unfold[0], norm_x, A, B, C)) / (total_time))
 	
 	weights /= sum(weights)
 	return
@@ -56,27 +56,24 @@ def update_weights(A, B, C, X, Id, norm_x, lamb, weights, sketching_rates, rank,
 """
 Updates factor matrices through ridge regression
 """
-def update_factors(A, B, C, X, Id, lamb, s, rank):
+def update_factors(A, B, C, X_unfold, Id, lamb, s, rank):
 	# Update A
-	X_unfold = tl_base.unfold(X, 0)
-	dim_1, dim_2 = X_unfold.shape
+	dim_1, dim_2 = 	X_unfold[0].shape
 	idx = generate_sketch_indices(s, dim_2)
 	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=0).T)[:, idx]
-	A = (lamb * A + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
+	A = (lamb * A + X_unfold[0][:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
 
 	# Update B
-	X_unfold = tl_base.unfold(X, 1)
-	dim_1, dim_2 = X_unfold.shape
+	dim_1, dim_2 = X_unfold[0].shape
 	idx = generate_sketch_indices(s, dim_2)
 	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=1).T)[:, idx]
-	B = (lamb * B + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
+	B = (lamb * B + X_unfold[1][:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
 
 	# Update C
-	X_unfold = tl_base.unfold(X, 2)
-	dim_1, dim_2 = X_unfold.shape
+	dim_1, dim_2 = X_unfold[1].shape
 	idx = generate_sketch_indices(s, dim_2)
 	M = (tl_alg.khatri_rao([A, B, C], skip_matrix=2).T)[:, idx]
-	C = (lamb * C + X_unfold[:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
+	C = (lamb * C + X_unfold[2][:, idx] @ M.T) @ pinv(M @ M.T + lamb * Id)
 
 	return A,B,C
 """
@@ -85,12 +82,26 @@ Generates sketching indices
 def generate_sketch_indices(s, total_col):
 	return np.random.choice(range(total_col), size=int(s*total_col), replace=False, p=None)
 
+# """
+# Computes residual error
+# """
+# def residual_error(X, norm_x, A, B, C):
+# 	X_bar = tl_kruskal.kruskal_to_tensor([A,B,C])
+# 	return norm(X-X_bar)/norm_x
+
 """
 Computes residual error
 """
-def residual_error(X, norm_x, A, B, C):
-	X_bar = tl_kruskal.kruskal_to_tensor([A,B,C])
-	return norm(X-X_bar)/norm_x
+def residual_error(X0, norm_x, A, B, C):
+	X_bar = A @ (tl_alg.khatri_rao([A, B, C], skip_matrix=0).T)
+	return norm(X0-X_bar)/norm_x
+
+# """
+# Computes residual error
+# """
+# def residual_error(X0, norm_x, A, B, C):
+# 	X_bar = A @ (tl_alg.khatri_rao([B, C]).T)
+# 	return norm(X0-X_bar)/norm_x
 
 """
 Computes norm of a tensor
