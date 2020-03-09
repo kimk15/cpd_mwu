@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import tensorly.random as tl_rand
+import tensorly.kruskal_tensor as tl_kruskal
 import numpy as np
-import time
+from timeit import default_timer as timer
 
 from cpd_mwu import CPD_MWU
 
@@ -17,9 +18,9 @@ X = tl_kruskal.kruskal_to_tensor(F)
 
 # Run experiment for sketching with weight update
 sketching_rates = list(np.linspace(10**(-3), 10**(-1), 4)) + [1]
-start = time.time()
+start = timer()
 A,B,C, error, res_time = CPD_MWU(X, F, sketching_rates, lamb, eps, nu, rank, num_iterations)
-end = time.time()
+end = timer()
 # Print out total time
 print("Total time", end-start)
 print("CPD time", end-start-res_time)
